@@ -2,110 +2,171 @@ package mobile.base;
 
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
-import io.appium.java_client.android.options.UiAutomator2Options;
 import io.appium.java_client.ios.IOSDriver;
-import io.appium.java_client.ios.options.XCUITestOptions;
-import net.serenitybdd.core.environment.EnvironmentSpecificConfiguration;
-import net.thucydides.core.environment.SystemEnvironmentVariables;
-import net.thucydides.core.util.EnvironmentVariables;
+import net.serenitybdd.core.Serenity;
+import net.thucydides.core.webdriver.ThucydidesWebDriverSupport;
+import net.thucydides.core.webdriver.WebDriverFacade;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.remote.DesiredCapabilities;
 
 import java.net.URL;
-import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SharedDriver {
-    private static AppiumDriver driver;
-    private static final EnvironmentVariables environmentVariables = SystemEnvironmentVariables.createEnvironmentVariables();
+    private static final String DEVICE_DETAILS_KEY = "deviceDetails";
+    private static final ThreadLocal<AppiumDriver> DRIVER_THREAD_LOCAL = new ThreadLocal<>();
 
-    public static synchronized AppiumDriver getDriver() {
+    /**
+     * Get the driver
+     * @return The AppiumDriver instance
+     */
+    public static AppiumDriver getDriver() {
+        // First try to get from our ThreadLocal
+        AppiumDriver driver = DRIVER_THREAD_LOCAL.get();
+
+        // If not found, try to get from Serenity
         if (driver == null) {
-            initializeDriver();
+            try {
+                WebDriver serenityDriver = ThucydidesWebDriverSupport.getDriver();
+                if (serenityDriver instanceof WebDriverFacade) {
+                    WebDriver proxiedDriver = ((WebDriverFacade) serenityDriver).getProxiedDriver();
+                    if (proxiedDriver instanceof AppiumDriver) {
+                        driver = (AppiumDriver) proxiedDriver;
+                        DRIVER_THREAD_LOCAL.set(driver);
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Error getting driver from Serenity: " + e.getMessage());
+            }
         }
+
+        // If still not found, create a new one
+        if (driver == null) {
+            driver = createDriver();
+            DRIVER_THREAD_LOCAL.set(driver);
+        }
+
         return driver;
     }
 
-    private static void initializeDriver() {
+    /**
+     * Create a new driver instance
+     * @return The AppiumDriver instance
+     */
+    private static AppiumDriver createDriver() {
         try {
-            String platformName = getProperty("appium.platformName");
-            String deviceName = getProperty("appium.deviceName");
-            String automationName = getProperty("appium.automationName");
-            String hubUrl = getProperty("appium.hub");
+            // Get device configuration from system properties
+            String deviceName = System.getProperty("deviceName", "Android Emulator");
+            String platformName = System.getProperty("platformName", "Android");
+            String platformVersion = System.getProperty("platformVersion", "11");
+            String udid = System.getProperty("udid", "emulator-5554");
+            String appiumPort = System.getProperty("appiumPort", "4723");
+            String appPackage = System.getProperty("appPackage", "com.example.android");
+            String appActivity = System.getProperty("appActivity", "com.example.android.MainActivity");
+            String bundleId = System.getProperty("bundleId", "com.example.ios");
 
-            if ("Android".equalsIgnoreCase(platformName)) {
-                UiAutomator2Options options = new UiAutomator2Options()
-                        .setDeviceName(deviceName)
-                        .setAutomationName(automationName)
-                        .setAppPackage(getProperty("appium.appPackage"))
-                        .setAppActivity(getProperty("appium.appActivity"))
-                        .setNoReset(Boolean.parseBoolean(getProperty("appium.noReset", "true")))
-                        .setNewCommandTimeout(Duration.ofSeconds(300))
-                        .setAutoGrantPermissions(true);
+            // Store device details for reporting
+            setDeviceDetail("deviceName", deviceName);
+            setDeviceDetail("platformName", platformName);
+            setDeviceDetail("platformVersion", platformVersion);
+            setDeviceDetail("udid", udid);
+            setDeviceDetail("appiumPort", appiumPort);
 
-                // Check if we have an app path to install
-                String appPath = getProperty("appium.app", "");
-                if (!appPath.isEmpty()) {
-                    options.setApp(appPath);
-                }
+            // Set up capabilities
+            DesiredCapabilities capabilities = new DesiredCapabilities();
+            capabilities.setCapability("deviceName", deviceName);
+            capabilities.setCapability("platformName", platformName);
+            capabilities.setCapability("platformVersion", platformVersion);
+            capabilities.setCapability("udid", udid);
 
-                driver = new AndroidDriver(new URL(hubUrl), options);
+            // Platform-specific capabilities
+            AppiumDriver driver;
+            URL appiumUrl = new URL("http://localhost:" + appiumPort + "/wd/hub");
 
-                // Force start the app if it's not already running
-                String appPackage = getProperty("appium.appPackage");
-                String appActivity = getProperty("appium.appActivity");
-                ((AndroidDriver) driver).activateApp(appPackage);
+            if (platformName.equalsIgnoreCase("android")) {
+                capabilities.setCapability("appPackage", appPackage);
+                capabilities.setCapability("appActivity", appActivity);
+                capabilities.setCapability("autoGrantPermissions", true);
+                capabilities.setCapability("noReset", false);
+                capabilities.setCapability("fullReset", false);
 
-            } else if ("iOS".equalsIgnoreCase(platformName)) {
-                XCUITestOptions options = new XCUITestOptions()
-                        .setDeviceName(deviceName)
-                        .setAutomationName(automationName)
-                        .setBundleId(getProperty("appium.bundleId"))
-                        .setNoReset(Boolean.parseBoolean(getProperty("appium.noReset", "true")))
-                        .setNewCommandTimeout(Duration.ofSeconds(300))
-                        .setAutoAcceptAlerts(true);
+                // Initialize Android driver
+                driver = new AndroidDriver(appiumUrl, capabilities);
 
-                // Check if we have an app path to install
-                String appPath = getProperty("appium.app", "");
-                if (!appPath.isEmpty()) {
-                    options.setApp(appPath);
-                }
+            } else if (platformName.equalsIgnoreCase("ios")) {
+                capabilities.setCapability("bundleId", bundleId);
+                capabilities.setCapability("automationName", "XCUITest");
+                capabilities.setCapability("autoAcceptAlerts", true);
+                capabilities.setCapability("noReset", false);
+                capabilities.setCapability("fullReset", false);
 
-                driver = new IOSDriver(new URL(hubUrl), options);
+                // Initialize iOS driver
+                driver = new IOSDriver(appiumUrl, capabilities);
 
-                // Force launch the app
-                String bundleId = getProperty("appium.bundleId");
-                ((IOSDriver) driver).activateApp(bundleId);
             } else {
                 throw new IllegalArgumentException("Unsupported platform: " + platformName);
             }
 
-            System.out.println("Driver initialized for platform: " + platformName);
-            System.out.println("App should now be launched");
+            System.out.println("Created new driver for device: " + deviceName +
+                    " (UDID: " + udid + ") on port " + appiumPort);
 
-            // Add a small delay to ensure app is fully launched
-            try {
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
+            return driver;
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to initialize driver: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to create driver: " + e.getMessage(), e);
         }
     }
 
+    /**
+     * Set device details in Serenity session
+     * @param key Detail key
+     * @param value Detail value
+     */
+    public static void setDeviceDetail(String key, String value) {
+        Map<String, String> deviceDetails = getDeviceDetailsMap();
+        deviceDetails.put(key, value);
+        Serenity.setSessionVariable(DEVICE_DETAILS_KEY).to(deviceDetails);
+    }
+
+    /**
+     * Get device detail from Serenity session
+     * @param key Detail key
+     * @return Detail value
+     */
+    public static String getDeviceDetail(String key) {
+        Map<String, String> deviceDetails = getDeviceDetailsMap();
+        return deviceDetails.get(key);
+    }
+
+    /**
+     * Get all device details from Serenity session
+     * @return Map of device details
+     */
+    public static Map<String, String> getAllDeviceDetails() {
+        return getDeviceDetailsMap();
+    }
+
+    private static Map<String, String> getDeviceDetailsMap() {
+        if (!Serenity.hasASessionVariableCalled(DEVICE_DETAILS_KEY)) {
+            Serenity.setSessionVariable(DEVICE_DETAILS_KEY).to(new HashMap<String, String>());
+        }
+        return Serenity.sessionVariableCalled(DEVICE_DETAILS_KEY);
+    }
+
+    /**
+     * Quit the driver
+     */
     public static void quitDriver() {
+        AppiumDriver driver = DRIVER_THREAD_LOCAL.get();
         if (driver != null) {
-            driver.quit();
-            driver = null;
+            try {
+                driver.quit();
+            } catch (Exception e) {
+                System.err.println("Error quitting driver: " + e.getMessage());
+            } finally {
+                DRIVER_THREAD_LOCAL.remove();
+            }
         }
-    }
-
-    private static String getProperty(String key) {
-        return EnvironmentSpecificConfiguration.from(environmentVariables).getProperty(key);
-    }
-
-    private static String getProperty(String key, String defaultValue) {
-        return EnvironmentSpecificConfiguration.from(environmentVariables)
-                .getOptionalProperty(key)
-                .orElse(defaultValue);
     }
 }

@@ -1,0 +1,22 @@
+{
+  "devices": [
+    {
+      "deviceName": "Android Emulator 1",
+      "platformName": "Android",
+      "platformVersion": "11",
+      "udid": "emulator-5554",
+      "appiumPort": "4723",
+      "appPackage": "com.example.android",
+      "appActivity": "com.example.android.MainActivity"
+    },
+    {
+      "deviceName": "Android Emulator 2",
+      "platformName": "Android",
+      "platformVersion": "11",
+      "udid": "emulator-5556",
+      "appiumPort": "4725",
+      "appPackage": "com.example.android",
+      "appActivity": "com.example.android.MainActivity"
+    }
+  ]
+}

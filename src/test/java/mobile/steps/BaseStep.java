@@ -1,63 +1,59 @@
 package mobile.steps;
 
+import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.ios.IOSDriver;
 import mobile.base.SharedDriver;
 import net.thucydides.core.annotations.Step;
-import io.appium.java_client.AppiumDriver;
 
 public class BaseStep {
 
-    @Step("Print driver details")
-    public void printDriverDetails() {
+    @Step("Launch application")
+    public void launchApp() {
         try {
             AppiumDriver driver = SharedDriver.getDriver();
-            if (driver != null) {
-                System.out.println("Application launched");
-                System.out.println("Driver Platform: " + driver.getCapabilities().getCapability("platformName"));
-                System.out.println("Driver Device: " + driver.getCapabilities().getCapability("deviceName"));
-                System.out.println("Driver App: " + driver.getCapabilities().getCapability("appPackage"));
-            } else {
-                System.err.println("Driver is null — check initialization.");
+
+            // Ensure app is in foreground
+            if (driver instanceof AndroidDriver) {
+                AndroidDriver androidDriver = (AndroidDriver) driver;
+                String appPackage = SharedDriver.getDeviceDetail("appPackage");
+                if (appPackage == null || appPackage.isEmpty()) {
+                    appPackage = driver.getCapabilities().getCapability("appPackage").toString();
+                }
+
+                // Check if app is running
+                if (!androidDriver.isAppInstalled(appPackage)) {
+                    System.out.println("App is not installed: " + appPackage);
+                } else {
+                    // Start app if not already running
+                    androidDriver.activateApp(appPackage);
+                    System.out.println("Activated app: " + appPackage);
+                }
+            } else if (driver instanceof IOSDriver) {
+                IOSDriver iosDriver = (IOSDriver) driver;
+                String bundleId = SharedDriver.getDeviceDetail("bundleId");
+                if (bundleId == null || bundleId.isEmpty()) {
+                    bundleId = driver.getCapabilities().getCapability("bundleId").toString();
+                }
+
+                // Check app state
+                io.appium.java_client.appmanagement.ApplicationState appState =
+                        iosDriver.queryAppState(bundleId);
+
+                // If app is not running or in background, activate it
+                if (appState != io.appium.java_client.appmanagement.ApplicationState.RUNNING_IN_FOREGROUND) {
+                    System.out.println("App is not in foreground. Current state: " + appState +
+                            ". Launching app: " + bundleId);
+                    iosDriver.activateApp(bundleId);
+                }
             }
+
         } catch (Exception e) {
-            System.err.println("Error getting driver details: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to launch app: " + e.getMessage(), e);
         }
     }
 
-    public void launchApp(){
-        // Add verification that app is running
-        AppiumDriver driver = SharedDriver.getDriver();
-        if (driver != null) {
-            try {
-                // For Android
-                if (driver.getCapabilities().getPlatformName().toString().equalsIgnoreCase("android")) {
-                    String currentPackage = ((io.appium.java_client.android.AndroidDriver) driver).getCurrentPackage();
-                    System.out.println("Current app package: " + currentPackage);
-
-                    // Verify we're in the correct app
-                    String expectedPackage = "com.act.mobile.apps";
-                    if (!expectedPackage.equals(currentPackage)) {
-                        System.err.println("WARNING: App is not running the expected package!");
-                        System.err.println("Expected: " + expectedPackage + ", Actual: " + currentPackage);
-
-                        // Try to force launch the app
-                        ((io.appium.java_client.android.AndroidDriver) driver).activateApp(expectedPackage);
-                        System.out.println("Attempted to force launch the app");
-                    }
-                }
-                // For iOS
-                else if (driver.getCapabilities().getPlatformName().toString().equalsIgnoreCase("ios")) {
-                    // The correct method name is queryAppState
-                    String bundleId = System.getProperty("appium.bundleId", "com.act.mobile.apps");
-                    io.appium.java_client.ios.IOSDriver iosDriver = (io.appium.java_client.ios.IOSDriver) driver;
-
-                    // Check app state
-                    io.appium.java_client.appmanagement.ApplicationState appState =
-                            iosDriver.queryAppState(bundleId);
-                    System.out.println("Current app state for " + bundleId + ": " + appState);
-                }
-            } catch (Exception e) {
-                System.err.println("Error verifying app state: " + e.getMessage());
-            }
-        }
+    public void printDriverDetails() {
     }
 }

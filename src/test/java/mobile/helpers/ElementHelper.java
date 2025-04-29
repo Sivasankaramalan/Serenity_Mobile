@@ -1,5 +1,6 @@
 package mobile.helpers;
 
+import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import mobile.base.SharedDriver;
 import mobile.utils.MobileUtilities;
@@ -13,196 +14,171 @@ import java.util.List;
 
 public class ElementHelper {
 
-    private static final int DEFAULT_TIMEOUT = 10; // seconds
+    private static final int DEFAULT_TIMEOUT = 15; // seconds
 
     /**
-     * Wait for an element to be visible
-     * @param element The element to wait for
+     * Find element with timeout
+     * @param by Locator
      * @param timeoutSeconds Timeout in seconds
-     * @return true if element becomes visible within timeout, false otherwise
+     * @return WebElement or null if not found
      */
-    public static boolean waitForVisibility(WebElement element, int timeoutSeconds) {
+    public static WebElement findElement(By by, int timeoutSeconds) {
         try {
-            WebDriverWait wait = new WebDriverWait(SharedDriver.getDriver(), Duration.ofSeconds(timeoutSeconds));
-            wait.until(ExpectedConditions.visibilityOf(element));
-            return true;
+            AppiumDriver driver = SharedDriver.getDriver();
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
+            return wait.until(ExpectedConditions.presenceOfElementLocated(by));
         } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * Wait for an element to be visible with default timeout
-     * @param element The element to wait for
-     * @return true if element becomes visible within timeout, false otherwise
-     */
-    public static boolean waitForVisibility(WebElement element) {
-        return waitForVisibility(element, DEFAULT_TIMEOUT);
-    }
-
-    /**
-     * Wait for an element to be clickable
-     * @param element The element to wait for
-     * @param timeoutSeconds Timeout in seconds
-     * @return true if element becomes clickable within timeout, false otherwise
-     */
-    public static boolean waitForClickability(WebElement element, int timeoutSeconds) {
-        try {
-            WebDriverWait wait = new WebDriverWait(SharedDriver.getDriver(), Duration.ofSeconds(timeoutSeconds));
-            wait.until(ExpectedConditions.elementToBeClickable(element));
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * Click on an element with validation
-     * @param element The element to click
-     * @param elementName Name of the element for reporting
-     * @return true if click was successful, false otherwise
-     */
-    public static boolean click(WebElement element, String elementName) {
-        try {
-            if (!waitForClickability(element, DEFAULT_TIMEOUT)) {
-                System.err.println("Element '" + elementName + "' not clickable within timeout");
-                MobileUtilities.takeScreenshot();
-                return false;
-            }
-            element.click();
-            System.out.println("Clicked on element: " + elementName);
-            return true;
-        } catch (Exception e) {
-            System.err.println("Failed to click on element '" + elementName + "': " + e.getMessage());
-            MobileUtilities.takeScreenshot();
-            return false;
-        }
-    }
-
-    /**
-     * Enter text into an element with validation
-     * @param element The element to enter text into
-     * @param text The text to enter
-     * @param elementName Name of the element for reporting
-     * @return true if text entry was successful, false otherwise
-     */
-    public static boolean enterText(WebElement element, String text, String elementName) {
-        try {
-            if (!waitForVisibility(element, DEFAULT_TIMEOUT)) {
-                System.err.println("Element '" + elementName + "' not visible within timeout");
-                MobileUtilities.takeScreenshot();
-                return false;
-            }
-            element.clear();
-            element.sendKeys(text);
-            System.out.println("Entered text '" + text + "' in element: " + elementName);
-            return true;
-        } catch (Exception e) {
-            System.err.println("Failed to enter text in element '" + elementName + "': " + e.getMessage());
-            MobileUtilities.takeScreenshot();
-            return false;
-        }
-    }
-
-    /**
-     * Clear text from an element with validation
-     * @param element The element to clear
-     * @param elementName Name of the element for reporting
-     * @return true if clear was successful, false otherwise
-     */
-    public static boolean clearText(WebElement element, String elementName) {
-        try {
-            if (!waitForVisibility(element, DEFAULT_TIMEOUT)) {
-                System.err.println("Element '" + elementName + "' not visible within timeout");
-                MobileUtilities.takeScreenshot();
-                return false;
-            }
-            element.clear();
-            System.out.println("Cleared text from element: " + elementName);
-            return true;
-        } catch (Exception e) {
-            System.err.println("Failed to clear text from element '" + elementName + "': " + e.getMessage());
-            MobileUtilities.takeScreenshot();
-            return false;
-        }
-    }
-
-    /**
-     * Get text from an element with validation
-     * @param element The element to get text from
-     * @param elementName Name of the element for reporting
-     * @return The element text or null if operation failed
-     */
-    public static String getText(WebElement element, String elementName) {
-        try {
-            if (!waitForVisibility(element, DEFAULT_TIMEOUT)) {
-                System.err.println("Element '" + elementName + "' not visible within timeout");
-                MobileUtilities.takeScreenshot();
-                return null;
-            }
-            String text = element.getText();
-            System.out.println("Got text '" + text + "' from element: " + elementName);
-            return text;
-        } catch (Exception e) {
-            System.err.println("Failed to get text from element '" + elementName + "': " + e.getMessage());
-            MobileUtilities.takeScreenshot();
+            System.err.println("Element not found: " + by);
             return null;
         }
     }
 
     /**
-     * Check if an element is displayed
-     * @param element The element to check
-     * @param elementName Name of the element for reporting
-     * @return true if element is displayed, false otherwise
+     * Find element with default timeout
+     * @param by Locator
+     * @return WebElement or null if not found
      */
-    public static boolean isDisplayed(WebElement element, String elementName) {
+    public static WebElement findElement(By by) {
+        return findElement(by, DEFAULT_TIMEOUT);
+    }
+
+    /**
+     * Find elements with timeout
+     * @param by Locator
+     * @param timeoutSeconds Timeout in seconds
+     * @return List of WebElements
+     */
+    public static List<WebElement> findElements(By by, int timeoutSeconds) {
         try {
-            boolean isDisplayed = element.isDisplayed();
-            System.out.println("Element '" + elementName + "' is displayed: " + isDisplayed);
-            return isDisplayed;
+            AppiumDriver driver = SharedDriver.getDriver();
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
+            wait.until(ExpectedConditions.presenceOfElementLocated(by));
+            return driver.findElements(by);
         } catch (Exception e) {
-            System.out.println("Element '" + elementName + "' is not displayed");
+            System.err.println("Elements not found: " + by);
+            return List.of();
+        }
+    }
+
+    /**
+     * Find elements with default timeout
+     * @param by Locator
+     * @return List of WebElements
+     */
+    public static List<WebElement> findElements(By by) {
+        return findElements(by, DEFAULT_TIMEOUT);
+    }
+
+    /**
+     * Click on element
+     * @param by Locator
+     * @return true if successful, false otherwise
+     */
+    public static boolean click(By by) {
+        try {
+            WebElement element = findElement(by);
+            if (element != null) {
+                element.click();
+                return true;
+            }
+            return false;
+        } catch (Exception e) {
+            System.err.println("Failed to click element: " + by);
             return false;
         }
     }
 
     /**
-     * Find element by locator with wait
-     * @param locator The locator to find the element
-     * @param timeoutSeconds Timeout in seconds
-     * @return The found element or null if not found
+     * Enter text into element
+     * @param by Locator
+     * @param text Text to enter
+     * @return true if successful, false otherwise
      */
-    public static WebElement findElement(By locator, int timeoutSeconds) {
+    public static boolean sendKeys(By by, String text) {
         try {
-            WebDriverWait wait = new WebDriverWait(SharedDriver.getDriver(), Duration.ofSeconds(timeoutSeconds));
-            return wait.until(ExpectedConditions.presenceOfElementLocated(locator));
+            WebElement element = findElement(by);
+            if (element != null) {
+                element.clear();
+                element.sendKeys(text);
+                return true;
+            }
+            return false;
         } catch (Exception e) {
-            System.err.println("Element not found with locator: " + locator);
-            return null;
+            System.err.println("Failed to send keys to element: " + by);
+            return false;
         }
     }
 
     /**
-     * Find element by locator with default timeout
-     * @param locator The locator to find the element
-     * @return The found element or null if not found
+     * Get text from element
+     * @param by Locator
+     * @return Element text or empty string if not found
      */
-    public static WebElement findElement(By locator) {
-        return findElement(locator, DEFAULT_TIMEOUT);
+    public static String getText(By by) {
+        try {
+            WebElement element = findElement(by);
+            return element != null ? element.getText() : "";
+        } catch (Exception e) {
+            System.err.println("Failed to get text from element: " + by);
+            return "";
+        }
     }
 
     /**
-     * Find elements by locator
-     * @param locator The locator to find the elements
-     * @return List of found elements (may be empty)
+     * Check if element is displayed
+     * @param by Locator
+     * @return true if displayed, false otherwise
      */
-    public static List<WebElement> findElements(By locator) {
+    public static boolean isDisplayed(By by) {
         try {
-            return SharedDriver.getDriver().findElements(locator);
+            WebElement element = findElement(by, 5); // shorter timeout for checks
+            return element != null && element.isDisplayed();
         } catch (Exception e) {
-            System.err.println("Error finding elements with locator: " + locator);
-            return List.of(); // Return empty list
+            return false;
+        }
+    }
+
+    /**
+     * Check if element is enabled
+     * @param by Locator
+     * @return true if enabled, false otherwise
+     */
+    public static boolean isEnabled(By by) {
+        try {
+            WebElement element = findElement(by);
+            return element != null && element.isEnabled();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Check if element is selected
+     * @param by Locator
+     * @return true if selected, false otherwise
+     */
+    public static boolean isSelected(By by) {
+        try {
+            WebElement element = findElement(by);
+            return element != null && element.isSelected();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get attribute value from element
+     * @param by Locator
+     * @param attribute Attribute name
+     * @return Attribute value or empty string if not found
+     */
+    public static String getAttribute(By by, String attribute) {
+        try {
+            WebElement element = findElement(by);
+            return element != null ? element.getAttribute(attribute) : "";
+        } catch (Exception e) {
+            System.err.println("Failed to get attribute from element: " + by);
+            return "";
         }
     }
 
@@ -219,8 +195,7 @@ public class ElementHelper {
             if (driver.getCapabilities().getPlatformName().toString().equalsIgnoreCase("android")) {
                 // Use the correct method for Android UIAutomator
                 String uiAutomatorString = "new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains(\"" + text + "\"))";
-                ((io.appium.java_client.android.AndroidDriver) driver).findElement(
-                        io.appium.java_client.AppiumBy.androidUIAutomator(uiAutomatorString));
+                driver.findElement(AppiumBy.androidUIAutomator(uiAutomatorString));
                 return true;
             }
             // For iOS
@@ -240,28 +215,6 @@ public class ElementHelper {
         } catch (Exception e) {
             System.err.println("Failed to scroll to element with text '" + text + "': " + e.getMessage());
             return false;
-        }
-    }
-
-    /**
-     * Get attribute value from element
-     * @param element The element to get attribute from
-     * @param attributeName The attribute name
-     * @param elementName Name of the element for reporting
-     * @return The attribute value or null if operation failed
-     */
-    public static String getAttribute(WebElement element, String attributeName, String elementName) {
-        try {
-            if (!waitForVisibility(element, DEFAULT_TIMEOUT)) {
-                System.err.println("Element '" + elementName + "' not visible within timeout");
-                return null;
-            }
-            String value = element.getAttribute(attributeName);
-            System.out.println("Got attribute '" + attributeName + "' with value '" + value + "' from element: " + elementName);
-            return value;
-        } catch (Exception e) {
-            System.err.println("Failed to get attribute '" + attributeName + "' from element '" + elementName + "': " + e.getMessage());
-            return null;
         }
     }
 }
