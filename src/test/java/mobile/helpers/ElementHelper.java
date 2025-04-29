@@ -1,4 +1,4 @@
-package mobile.utils;
+package mobile.helpers;
 
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
@@ -7,7 +7,6 @@ import mobile.base.SharedDriver;
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
-import org.openqa.selenium.support.ui.Wait;
 
 import java.time.Duration;
 import java.util.List;
@@ -29,7 +28,7 @@ public class ElementHelper {
      * Create a FluentWait instance with default settings
      * @return Wait<WebDriver> instance
      */
-    private static Wait<WebDriver> createWait() {
+    private static FluentWait<AppiumDriver> createWait() {
         return createWait(DEFAULT_TIMEOUT_SECONDS);
     }
 
@@ -38,7 +37,7 @@ public class ElementHelper {
      * @param timeoutSeconds Timeout in seconds
      * @return Wait<WebDriver> instance
      */
-    private static Wait<WebDriver> createWait(int timeoutSeconds) {
+    private static FluentWait<AppiumDriver> createWait(int timeoutSeconds) {
         return new FluentWait<>(getDriver())
                 .withTimeout(Duration.ofSeconds(timeoutSeconds))
                 .pollingEvery(Duration.ofMillis(DEFAULT_POLLING_INTERVAL_MS))
