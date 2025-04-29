@@ -1,0 +1,140 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath("net.serenity-bdd:serenity-single-page-report:3.7.1")
+    }
+}
+
+ext {
+    serenityBddVersion = '3.7.1'
+    applitoolsVersion = '5.45.0'
+    jbehaveWebdriverVersion = '1.15.0'
+    junitVersion = '5.8.2'
+
+    appium_environment = System.getProperty('appium.environment') ?: System.getenv('appium.environment') ?: ''
+    println "appium.environment: " + appium_environment + " (defaults to empty - used for IntelliJ mobile only)"
+}
+
+println "Running gradle version: $gradle.gradleVersion"
+
+def generatedResourceDir = project.file('src/gen/resources')
+project.delete(generatedResourceDir)
+project.mkdir(generatedResourceDir)
+
+apply plugin: 'java-library'
+apply plugin: 'maven-publish'
+
+group = 'mobile'
+description = 'mobile'
+version = '1.0.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    maven { url "https://repo.appium.io" }  // Optional: for Appium artifacts
+}
+
+dependencies {
+    implementation 'io.appium:java-client:8.5.1'
+    implementation 'org.slf4j:slf4j-api:1.7.32'
+    implementation 'ch.qos.logback:logback-classic:1.5.13'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.json:json:20231013'
+    implementation "net.serenity-bdd:serenity-core:$serenityBddVersion"
+
+
+    testImplementation 'org.hamcrest:hamcrest:2.2'
+    testImplementation "net.serenity-bdd:serenity-cucumber:$serenityBddVersion"
+    testImplementation "net.serenity-bdd:serenity-junit:$serenityBddVersion"
+    testImplementation "net.serenity-bdd:serenity-rest-assured:$serenityBddVersion"
+
+    testImplementation "org.junit.jupiter:junit-jupiter:$junitVersion"
+    testImplementation 'io.rest-assured:json-schema-validator:4.3.1'
+
+
+}
+
+clean {
+    delete 'Results', 'logs', 'target/site/serenity/'
+}
+
+test {
+//    useJUnitPlatform()
+
+    // Set common properties
+    systemProperty 'tags', System.getProperty('tags')
+    systemProperty 'environment', System.getProperty('environment') ?: (
+            System.getProperty('webdriver.driver') == 'appium' ? System.getProperty('environment') : 'local'
+    )
+    systemProperty 'localdata', System.getProperty('localdata') ?: 'localdata'
+
+    // Optional properties
+    def maybeSetProp = { key ->
+        if (System.getProperty(key)) {
+            systemProperty key, System.getProperty(key)
+        }
+    }
+
+    maybeSetProp('serenity.test.tag')
+    maybeSetProp('cucumber.filter.tags')
+
+    // Appium platform-specific setup
+    if (System.getProperty('webdriver.driver') == 'appium') {
+        println "Appium platform: " + System.getProperty('appium.platformName')
+        def platform = System.getProperty('appium.platformName')?.toLowerCase()
+
+        if (platform == 'android' && appium_environment == 'uat') {
+            System.setProperty('appium.appPackage', '')
+            System.setProperty('appium.platformName', 'Android')
+        } else if (platform == 'ios' && appium_environment == 'uat') {
+            System.setProperty('appium.bundleId', 'c')
+        }
+    }
+
+    // Retry logic
+    // Retry logic
+    System.setProperty('failOnPassedAfterRetry', 'true')
+    System.setProperty('maxFailures', '100')
+    System.setProperty('maxRetries', System.getProperty('maxRetries') ?: '0')
+
+    // Propagate Serenity/Appium properties
+    def serenityKeys = [
+            'webdriver.driver',
+            'webdriver.remote.driver',
+            'webdriver.remote.url',
+            'webdriver.timeouts.browser.version',
+            'tags',
+            'appium.app',
+            'appium.hub',
+            'appium.deviceName',
+            'appium.platformName',
+            'appium.platformVersion',
+            'appium.appPackage',
+            'appium.appBundleId',
+            'cucumber.filter.tags',
+            'cucumber.options',
+            'cucumber.glue',
+            'bitrise',
+            'failOnPassedAfterRetry',
+            'maxFailures',
+            'maxRetries'
+    ]
+
+    serenityKeys.each { key ->
+        if (System.getProperty(key)) {
+            systemProperty key, System.getProperty(key)
+        }
+    }
+
+    testLogging {
+        events "started", "passed", "failed", "skipped", "standard_out", "standard_error"
+        showStandardStreams = true
+    }
+
+    reports {
+        junitXml.required.set(true)
+        html.required.set(true)
+    }
+}
