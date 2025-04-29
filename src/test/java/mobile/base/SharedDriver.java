@@ -4,9 +4,6 @@ import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import net.serenitybdd.core.Serenity;
-import net.thucydides.core.webdriver.ThucydidesWebDriverSupport;
-import net.thucydides.core.webdriver.WebDriverFacade;
-import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.DesiredCapabilities;
 
 import java.net.URL;
@@ -22,26 +19,10 @@ public class SharedDriver {
      * @return The AppiumDriver instance
      */
     public static AppiumDriver getDriver() {
-        // First try to get from our ThreadLocal
+        // Get from ThreadLocal
         AppiumDriver driver = DRIVER_THREAD_LOCAL.get();
 
-        // If not found, try to get from Serenity
-        if (driver == null) {
-            try {
-                WebDriver serenityDriver = ThucydidesWebDriverSupport.getDriver();
-                if (serenityDriver instanceof WebDriverFacade) {
-                    WebDriver proxiedDriver = ((WebDriverFacade) serenityDriver).getProxiedDriver();
-                    if (proxiedDriver instanceof AppiumDriver) {
-                        driver = (AppiumDriver) proxiedDriver;
-                        DRIVER_THREAD_LOCAL.set(driver);
-                    }
-                }
-            } catch (Exception e) {
-                System.err.println("Error getting driver from Serenity: " + e.getMessage());
-            }
-        }
-
-        // If still not found, create a new one
+        // If not found, create a new one
         if (driver == null) {
             driver = createDriver();
             DRIVER_THREAD_LOCAL.set(driver);
@@ -66,12 +47,19 @@ public class SharedDriver {
             String appActivity = System.getProperty("appActivity", "com.example.android.MainActivity");
             String bundleId = System.getProperty("bundleId", "com.example.ios");
 
+            // Log device details
+            System.out.println("Creating driver for device: " + deviceName +
+                    " (UDID: " + udid + ") on port " + appiumPort);
+            System.out.println("App details: " + appPackage + "/" + appActivity);
+
             // Store device details for reporting
             setDeviceDetail("deviceName", deviceName);
             setDeviceDetail("platformName", platformName);
             setDeviceDetail("platformVersion", platformVersion);
             setDeviceDetail("udid", udid);
             setDeviceDetail("appiumPort", appiumPort);
+            setDeviceDetail("appPackage", appPackage);
+            setDeviceDetail("appActivity", appActivity);
 
             // Set up capabilities
             DesiredCapabilities capabilities = new DesiredCapabilities();
@@ -79,6 +67,13 @@ public class SharedDriver {
             capabilities.setCapability("platformName", platformName);
             capabilities.setCapability("platformVersion", platformVersion);
             capabilities.setCapability("udid", udid);
+
+            // Add automationName capability - required by newer Appium versions
+            if (platformName.equalsIgnoreCase("android")) {
+                capabilities.setCapability("automationName", "UiAutomator2");
+            } else if (platformName.equalsIgnoreCase("ios")) {
+                capabilities.setCapability("automationName", "XCUITest");
+            }
 
             // Platform-specific capabilities
             AppiumDriver driver;
@@ -92,16 +87,17 @@ public class SharedDriver {
                 capabilities.setCapability("fullReset", false);
 
                 // Initialize Android driver
+                System.out.println("Creating Android driver with capabilities: " + capabilities);
                 driver = new AndroidDriver(appiumUrl, capabilities);
 
             } else if (platformName.equalsIgnoreCase("ios")) {
                 capabilities.setCapability("bundleId", bundleId);
-                capabilities.setCapability("automationName", "XCUITest");
                 capabilities.setCapability("autoAcceptAlerts", true);
                 capabilities.setCapability("noReset", false);
                 capabilities.setCapability("fullReset", false);
 
                 // Initialize iOS driver
+                System.out.println("Creating iOS driver with capabilities: " + capabilities);
                 driver = new IOSDriver(appiumUrl, capabilities);
 
             } else {
@@ -114,6 +110,7 @@ public class SharedDriver {
             return driver;
 
         } catch (Exception e) {
+            e.printStackTrace();
             throw new RuntimeException("Failed to create driver: " + e.getMessage(), e);
         }
     }

@@ -1,220 +1,366 @@
-package mobile.helpers;
+package mobile.utils;
 
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.PerformsTouchActions;
 import mobile.base.SharedDriver;
-import mobile.utils.MobileUtilities;
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.support.ui.FluentWait;
+import org.openqa.selenium.support.ui.Wait;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 public class ElementHelper {
-
-    private static final int DEFAULT_TIMEOUT = 15; // seconds
+    private static final int DEFAULT_TIMEOUT_SECONDS = 15;
+    private static final int DEFAULT_POLLING_INTERVAL_MS = 500;
 
     /**
-     * Find element with timeout
-     * @param by Locator
-     * @param timeoutSeconds Timeout in seconds
-     * @return WebElement or null if not found
+     * Get the AppiumDriver instance from SharedDriver
+     * @return AppiumDriver instance
      */
-    public static WebElement findElement(By by, int timeoutSeconds) {
+    private static AppiumDriver getDriver() {
+        return SharedDriver.getDriver();
+    }
+
+    /**
+     * Create a FluentWait instance with default settings
+     * @return Wait<WebDriver> instance
+     */
+    private static Wait<WebDriver> createWait() {
+        return createWait(DEFAULT_TIMEOUT_SECONDS);
+    }
+
+    /**
+     * Create a FluentWait instance with custom timeout
+     * @param timeoutSeconds Timeout in seconds
+     * @return Wait<WebDriver> instance
+     */
+    private static Wait<WebDriver> createWait(int timeoutSeconds) {
+        return new FluentWait<>(getDriver())
+                .withTimeout(Duration.ofSeconds(timeoutSeconds))
+                .pollingEvery(Duration.ofMillis(DEFAULT_POLLING_INTERVAL_MS))
+                .ignoring(NoSuchElementException.class)
+                .ignoring(StaleElementReferenceException.class);
+    }
+
+    /**
+     * Find element by ID
+     * @param id Element ID
+     * @return WebElement
+     */
+    public static WebElement findElementById(String id) {
         try {
-            AppiumDriver driver = SharedDriver.getDriver();
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
-            return wait.until(ExpectedConditions.presenceOfElementLocated(by));
-        } catch (Exception e) {
-            System.err.println("Element not found: " + by);
-            return null;
+            return createWait().until(ExpectedConditions.presenceOfElementLocated(AppiumBy.id(id)));
+        } catch (TimeoutException e) {
+            throw new NoSuchElementException("Element with ID '" + id + "' not found after " + DEFAULT_TIMEOUT_SECONDS + " seconds");
         }
     }
 
     /**
-     * Find element with default timeout
-     * @param by Locator
-     * @return WebElement or null if not found
+     * Find element by accessibility ID
+     * @param accessibilityId Accessibility ID
+     * @return WebElement
      */
-    public static WebElement findElement(By by) {
-        return findElement(by, DEFAULT_TIMEOUT);
-    }
-
-    /**
-     * Find elements with timeout
-     * @param by Locator
-     * @param timeoutSeconds Timeout in seconds
-     * @return List of WebElements
-     */
-    public static List<WebElement> findElements(By by, int timeoutSeconds) {
+    public static WebElement findElementByAccessibilityId(String accessibilityId) {
         try {
-            AppiumDriver driver = SharedDriver.getDriver();
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
-            wait.until(ExpectedConditions.presenceOfElementLocated(by));
-            return driver.findElements(by);
-        } catch (Exception e) {
-            System.err.println("Elements not found: " + by);
-            return List.of();
+            return createWait().until(ExpectedConditions.presenceOfElementLocated(AppiumBy.accessibilityId(accessibilityId)));
+        } catch (TimeoutException e) {
+            throw new NoSuchElementException("Element with accessibility ID '" + accessibilityId + "' not found after " + DEFAULT_TIMEOUT_SECONDS + " seconds");
         }
     }
 
     /**
-     * Find elements with default timeout
-     * @param by Locator
-     * @return List of WebElements
+     * Find element by XPath
+     * @param xpath XPath expression
+     * @return WebElement
      */
-    public static List<WebElement> findElements(By by) {
-        return findElements(by, DEFAULT_TIMEOUT);
+    public static WebElement findElementByXPath(String xpath) {
+        try {
+            return createWait().until(ExpectedConditions.presenceOfElementLocated(AppiumBy.xpath(xpath)));
+        } catch (TimeoutException e) {
+            throw new NoSuchElementException("Element with XPath '" + xpath + "' not found after " + DEFAULT_TIMEOUT_SECONDS + " seconds");
+        }
     }
 
     /**
-     * Click on element
-     * @param by Locator
-     * @return true if successful, false otherwise
+     * Find elements by XPath
+     * @param xpath XPath expression
+     * @return List of WebElements
      */
-    public static boolean click(By by) {
+    public static List<WebElement> findElementsByXPath(String xpath) {
         try {
-            WebElement element = findElement(by);
-            if (element != null) {
-                element.click();
-                return true;
+            return createWait().until(ExpectedConditions.presenceOfAllElementsLocatedBy(AppiumBy.xpath(xpath)));
+        } catch (TimeoutException e) {
+            throw new NoSuchElementException("Elements with XPath '" + xpath + "' not found after " + DEFAULT_TIMEOUT_SECONDS + " seconds");
+        }
+    }
+
+    /**
+     * Find element by class name
+     * @param className Class name
+     * @return WebElement
+     */
+    public static WebElement findElementByClassName(String className) {
+        try {
+            return createWait().until(ExpectedConditions.presenceOfElementLocated(AppiumBy.className(className)));
+        } catch (TimeoutException e) {
+            throw new NoSuchElementException("Element with class name '" + className + "' not found after " + DEFAULT_TIMEOUT_SECONDS + " seconds");
+        }
+    }
+
+    /**
+     * Find elements by class name
+     * @param className Class name
+     * @return List of WebElements
+     */
+    public static List<WebElement> findElementsByClassName(String className) {
+        try {
+            return createWait().until(ExpectedConditions.presenceOfAllElementsLocatedBy(AppiumBy.className(className)));
+        } catch (TimeoutException e) {
+            throw new NoSuchElementException("Elements with class name '" + className + "' not found after " + DEFAULT_TIMEOUT_SECONDS + " seconds");
+        }
+    }
+
+    /**
+     * Wait for element to be clickable
+     * @param element WebElement
+     * @return WebElement that is clickable
+     */
+    public static WebElement waitForElementToBeClickable(WebElement element) {
+        try {
+            return createWait().until(ExpectedConditions.elementToBeClickable(element));
+        } catch (TimeoutException e) {
+            throw new ElementNotInteractableException("Element not clickable after " + DEFAULT_TIMEOUT_SECONDS + " seconds");
+        }
+    }
+
+    /**
+     * Wait for element to be visible
+     * @param element WebElement
+     * @return WebElement that is visible
+     */
+    public static WebElement waitForElementToBeVisible(WebElement element) {
+        try {
+            return createWait().until(ExpectedConditions.visibilityOf(element));
+        } catch (TimeoutException e) {
+            throw new ElementNotVisibleException("Element not visible after " + DEFAULT_TIMEOUT_SECONDS + " seconds");
+        }
+    }
+
+    /**
+     * Wait for element to be invisible
+     * @param element WebElement
+     * @return true if element is invisible
+     */
+    public static boolean waitForElementToBeInvisible(WebElement element) {
+        try {
+            return createWait().until(ExpectedConditions.invisibilityOf(element));
+        } catch (TimeoutException e) {
+            throw new TimeoutException("Element still visible after " + DEFAULT_TIMEOUT_SECONDS + " seconds");
+        }
+    }
+
+    /**
+     * Click on element with retry
+     * @param element WebElement to click
+     */
+    public static void clickWithRetry(WebElement element) {
+        int maxRetries = 3;
+        int retries = 0;
+        boolean clicked = false;
+
+        while (!clicked && retries < maxRetries) {
+            try {
+                waitForElementToBeClickable(element).click();
+                clicked = true;
+            } catch (Exception e) {
+                retries++;
+                if (retries >= maxRetries) {
+                    throw e;
+                }
+                try {
+                    Thread.sleep(1000); // Wait before retry
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
             }
-            return false;
-        } catch (Exception e) {
-            System.err.println("Failed to click element: " + by);
-            return false;
         }
     }
 
     /**
-     * Enter text into element
-     * @param by Locator
-     * @param text Text to enter
-     * @return true if successful, false otherwise
+     * Send keys to element with retry
+     * @param element WebElement to send keys to
+     * @param text Text to send
      */
-    public static boolean sendKeys(By by, String text) {
-        try {
-            WebElement element = findElement(by);
-            if (element != null) {
-                element.clear();
+    public static void sendKeysWithRetry(WebElement element, String text) {
+        int maxRetries = 3;
+        int retries = 0;
+        boolean sent = false;
+
+        while (!sent && retries < maxRetries) {
+            try {
+                waitForElementToBeClickable(element).clear();
                 element.sendKeys(text);
-                return true;
+                sent = true;
+            } catch (Exception e) {
+                retries++;
+                if (retries >= maxRetries) {
+                    throw e;
+                }
+                try {
+                    Thread.sleep(1000); // Wait before retry
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
             }
-            return false;
-        } catch (Exception e) {
-            System.err.println("Failed to send keys to element: " + by);
-            return false;
         }
     }
 
     /**
-     * Get text from element
-     * @param by Locator
-     * @return Element text or empty string if not found
+     * Scroll down until element is found or max scrolls reached
+     * @param locator By locator to find element
+     * @param maxScrolls Maximum number of scroll attempts
+     * @return WebElement if found, null otherwise
      */
-    public static String getText(By by) {
+    public static WebElement scrollToElement(By locator, int maxScrolls) {
+        for (int i = 0; i < maxScrolls; i++) {
+            try {
+                WebElement element = getDriver().findElement(locator);
+                if (element.isDisplayed()) {
+                    return element;
+                }
+            } catch (NoSuchElementException e) {
+                // Element not found, scroll down
+                scrollDown();
+            }
+        }
+        throw new NoSuchElementException("Element not found after scrolling " + maxScrolls + " times");
+    }
+
+    /**
+     * Scroll down
+     */
+    public static void scrollDown() {
+        AppiumDriver driver = getDriver();
+        Dimension size = driver.manage().window().getSize();
+        int startY = (int) (size.height * 0.8);
+        int endY = (int) (size.height * 0.2);
+        int centerX = size.width / 2;
+
         try {
-            WebElement element = findElement(by);
-            return element != null ? element.getText() : "";
+            driver.executeScript("mobile: scrollGesture",
+                    Map.of(
+                            "left", centerX - 100,
+                            "top", startY,
+                            "width", 200,
+                            "height", startY - endY,
+                            "direction", "down",
+                            "percent", 1.0
+                    )
+            );
         } catch (Exception e) {
-            System.err.println("Failed to get text from element: " + by);
-            return "";
+            // Fall back to TouchAction for older Appium versions
+            new io.appium.java_client.TouchAction<>((PerformsTouchActions) driver)
+                    .press(io.appium.java_client.touch.offset.PointOption.point(centerX, startY))
+                    .waitAction(io.appium.java_client.touch.WaitOptions.waitOptions(Duration.ofMillis(300)))
+                    .moveTo(io.appium.java_client.touch.offset.PointOption.point(centerX, endY))
+                    .release()
+                    .perform();
+        }
+    }
+
+    /**
+     * Scroll up
+     */
+    public static void scrollUp() {
+        AppiumDriver driver = getDriver();
+        Dimension size = driver.manage().window().getSize();
+        int startY = (int) (size.height * 0.2);
+        int endY = (int) (size.height * 0.8);
+        int centerX = size.width / 2;
+
+        try {
+            driver.executeScript("mobile: scrollGesture",
+                    Map.of(
+                            "left", centerX - 100,
+                            "top", endY - startY,
+                            "width", 200,
+                            "height", endY - startY,
+                            "direction", "up",
+                            "percent", 1.0
+                    )
+            );
+        } catch (Exception e) {
+            // Fall back to TouchAction for older Appium versions
+            new io.appium.java_client.TouchAction<>((PerformsTouchActions) driver)
+                    .press(io.appium.java_client.touch.offset.PointOption.point(centerX, startY))
+                    .waitAction(io.appium.java_client.touch.WaitOptions.waitOptions(Duration.ofMillis(300)))
+                    .moveTo(io.appium.java_client.touch.offset.PointOption.point(centerX, endY))
+                    .release()
+                    .perform();
+        }
+    }
+
+    /**
+     * Take screenshot
+     * @return Screenshot as byte array
+     */
+    public static byte[] takeScreenshot() {
+        return getDriver().getScreenshotAs(OutputType.BYTES);
+    }
+
+    /**
+     * Check if element exists
+     * @param locator By locator to find element
+     * @param timeoutSeconds Timeout in seconds
+     * @return true if element exists, false otherwise
+     */
+    public static boolean elementExists(By locator, int timeoutSeconds) {
+        try {
+            createWait(timeoutSeconds).until(ExpectedConditions.presenceOfElementLocated(locator));
+            return true;
+        } catch (TimeoutException e) {
+            return false;
         }
     }
 
     /**
      * Check if element is displayed
-     * @param by Locator
-     * @return true if displayed, false otherwise
+     * @param locator By locator to find element
+     * @param timeoutSeconds Timeout in seconds
+     * @return true if element is displayed, false otherwise
      */
-    public static boolean isDisplayed(By by) {
+    public static boolean elementIsDisplayed(By locator, int timeoutSeconds) {
         try {
-            WebElement element = findElement(by, 5); // shorter timeout for checks
-            return element != null && element.isDisplayed();
-        } catch (Exception e) {
+            return createWait(timeoutSeconds).until(ExpectedConditions.visibilityOfElementLocated(locator)).isDisplayed();
+        } catch (TimeoutException e) {
             return false;
         }
     }
 
     /**
-     * Check if element is enabled
-     * @param by Locator
-     * @return true if enabled, false otherwise
+     * Wait for text to be present in element
+     * @param element WebElement
+     * @param text Text to wait for
+     * @return true if text is present, false otherwise
      */
-    public static boolean isEnabled(By by) {
+    public static boolean waitForTextToBePresentInElement(WebElement element, String text) {
         try {
-            WebElement element = findElement(by);
-            return element != null && element.isEnabled();
-        } catch (Exception e) {
+            return createWait().until(ExpectedConditions.textToBePresentInElement(element, text));
+        } catch (TimeoutException e) {
             return false;
         }
     }
 
     /**
-     * Check if element is selected
-     * @param by Locator
-     * @return true if selected, false otherwise
+     * Custom ElementNotVisibleException since it's deprecated in newer Selenium versions
      */
-    public static boolean isSelected(By by) {
-        try {
-            WebElement element = findElement(by);
-            return element != null && element.isSelected();
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * Get attribute value from element
-     * @param by Locator
-     * @param attribute Attribute name
-     * @return Attribute value or empty string if not found
-     */
-    public static String getAttribute(By by, String attribute) {
-        try {
-            WebElement element = findElement(by);
-            return element != null ? element.getAttribute(attribute) : "";
-        } catch (Exception e) {
-            System.err.println("Failed to get attribute from element: " + by);
-            return "";
-        }
-    }
-
-    /**
-     * Scroll to element by text
-     * @param text The text to scroll to
-     * @return true if scroll was successful, false otherwise
-     */
-    public static boolean scrollToElementByText(String text) {
-        try {
-            AppiumDriver driver = SharedDriver.getDriver();
-
-            // For Android
-            if (driver.getCapabilities().getPlatformName().toString().equalsIgnoreCase("android")) {
-                // Use the correct method for Android UIAutomator
-                String uiAutomatorString = "new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains(\"" + text + "\"))";
-                driver.findElement(AppiumBy.androidUIAutomator(uiAutomatorString));
-                return true;
-            }
-            // For iOS
-            else {
-                // iOS scrolling is more complex and may require a different approach
-                // This is a simplified version
-                int maxSwipes = 10;
-                for (int i = 0; i < maxSwipes; i++) {
-                    List<WebElement> elements = driver.findElements(By.xpath("//*[contains(@label, '" + text + "') or contains(@value, '" + text + "')]"));
-                    if (!elements.isEmpty()) {
-                        return true;
-                    }
-                    MobileUtilities.swipeUp(driver);
-                }
-                return false;
-            }
-        } catch (Exception e) {
-            System.err.println("Failed to scroll to element with text '" + text + "': " + e.getMessage());
-            return false;
+    public static class ElementNotVisibleException extends RuntimeException {
+        public ElementNotVisibleException(String message) {
+            super(message);
         }
     }
 }

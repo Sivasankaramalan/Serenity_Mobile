@@ -5,7 +5,6 @@ import io.cucumber.java.After;
 import io.cucumber.java.Before;
 import io.cucumber.java.Scenario;
 import mobile.base.SharedDriver;
-import mobile.utils.MobileUtilities;
 import org.openqa.selenium.OutputType;
 
 import java.util.Map;
@@ -43,9 +42,6 @@ public class Hooks {
                 // Take screenshot
                 byte[] screenshot = driver.getScreenshotAs(OutputType.BYTES);
                 scenario.attach(screenshot, "image/png", "Screenshot");
-
-                // Log page source
-                MobileUtilities.logPageSource();
             }
 
             // Get device details for logging
@@ -61,7 +57,8 @@ public class Hooks {
             System.out.println("Finished scenario: " + scenario.getName() +
                     " on " + deviceInfo);
 
-            // We'll let Serenity manage the driver lifecycle
+            // Close driver
+            SharedDriver.quitDriver();
 
         } catch (Exception e) {
             System.err.println("Error in tearDown: " + e.getMessage());

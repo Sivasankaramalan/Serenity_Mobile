@@ -3,8 +3,6 @@ plugins {
     id 'net.serenity-bdd.serenity-gradle-plugin' version '4.2.22'
 }
 
-defaultTasks 'clean', 'test', 'aggregate'
-
 repositories {
     mavenCentral()
 }
@@ -44,15 +42,10 @@ test {
     systemProperties = System.properties
 
     // Configure parallel execution through system properties
-    systemProperty 'cucumber.execution.parallel.enabled', 'true'
-    systemProperty 'cucumber.execution.parallel.config.strategy', 'fixed'
-    systemProperty 'cucumber.execution.parallel.config.fixed.parallelism', '2'
+    systemProperty 'cucumber.execution.parallel.enabled', 'false'
 
-    // Serenity parallel execution properties
-    systemProperty 'serenity.thread.count', '2'
-
-    // Set maxParallelForks for Gradle
-    maxParallelForks = 2
+    // Appium capabilities
+    systemProperty 'appium.automationName', 'UiAutomator2'
 
     testLogging {
         events "passed", "skipped", "failed"
@@ -65,11 +58,6 @@ serenity {
     testRoot = "mobile"
     requirementsDir = "src/test/resources/features"
     reports = ["single-page-html"]
-}
-
-tasks.withType(Test) {
-    systemProperties = System.properties
-    systemProperty 'cucumber.filter.tags', System.getProperty('cucumber.filter.tags', '')
 }
 
 gradle.startParameter.continueOnFailure = true

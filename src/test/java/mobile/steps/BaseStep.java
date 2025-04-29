@@ -18,7 +18,7 @@ public class BaseStep {
                 AndroidDriver androidDriver = (AndroidDriver) driver;
                 String appPackage = SharedDriver.getDeviceDetail("appPackage");
                 if (appPackage == null || appPackage.isEmpty()) {
-                    appPackage = driver.getCapabilities().getCapability("appPackage").toString();
+                    appPackage = System.getProperty("appPackage", "com.example.android");
                 }
 
                 // Check if app is running
@@ -33,7 +33,7 @@ public class BaseStep {
                 IOSDriver iosDriver = (IOSDriver) driver;
                 String bundleId = SharedDriver.getDeviceDetail("bundleId");
                 if (bundleId == null || bundleId.isEmpty()) {
-                    bundleId = driver.getCapabilities().getCapability("bundleId").toString();
+                    bundleId = System.getProperty("bundleId", "com.example.ios");
                 }
 
                 // Check app state
@@ -52,8 +52,5 @@ public class BaseStep {
             e.printStackTrace();
             throw new RuntimeException("Failed to launch app: " + e.getMessage(), e);
         }
-    }
-
-    public void printDriverDetails() {
     }
 }
